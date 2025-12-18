@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>KLW Ranking — Pairing Code</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
+    .wrap { max-width: 680px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 22px; margin: 16px 0; }
+    .card { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 16px; }
+    label { display: block; font-size: 14px; margin-bottom: 8px; color: #94a3b8; }
+    input { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #334155; background: #0b1220; color: #e2e8f0; }
+    button { background: #22c55e; color: #052e1b; border: none; padding: 10px 16px; border-radius: 8px; margin-top: 10px; cursor: pointer; font-weight: 600; }
+    .code { font-size: 28px; letter-spacing: 2px; background: #0b1220; border: 1px dashed #334155; padding: 16px; border-radius: 8px; margin-top: 12px; text-align: center; }
+    .muted { color: #94a3b8; font-size: 13px; }
+    .row { display: flex; gap: 12px; align-items: center; margin-top: 8px; }
+    .status { margin-top: 8px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>KLW Ranking — Pairing Code</h1>
+    <div class="card">
+      <p class="muted">Enter your WhatsApp phone number (no +) and click “Generate”. Then in WhatsApp: Settings → Linked devices → Link with phone number.</p>
+
+      <label for="number">Phone number (e.g., 94778430626)</label>
+      <input id="number" type="text" placeholder="947XXXXXXXX" />
+
+      <div class="row">
+        <button id="gen">Generate</button>
+        <button id="refresh">Refresh Status</button>
+      </div>
+
+      <div id="status" class="status muted">Status: idle</div>
+      <div id="code" class="code">—— —— —— ——</div>
+    </div>
+  </div>
+
+  <script>
+    async function generate(number) {
+      const res = await fetch('/pair', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ number })
+      });
+      return res.json();
+    }
+    async function status() {
+      const res = await fetch('/pair/status');
+      return res.json();
+    }
+
+    const $number = document.getElementById('number');
+    const $gen = document.getElementById('gen');
+    const $refresh = document.getElementById('refresh');
+    const $status = document.getElementById('status');
+    const $code = document.getElementById('code');
+
+    function showStatus(text, isError) {
+      $status.textContent = 'Status: ' + text;
+      $status.style.color = isError ? '#fca5a5' : '#94a3b8';
+    }
+    function showCode(code) {
+      $code.textContent = code && code.trim() ? code : '—— —— —— ——';
+    }
+
+    $gen.addEventListener('click', async () => {
+      const n = $number.value.trim();
+      if (!n) return showStatus('enter a number', true);
+      showStatus('requesting code...');
+      try {
+        const res = await generate(n);
+        if (res.ok) {
+          showStatus('code generated for ' + res.number);
+          showCode(res.code);
+        } else {
+          showStatus(res.error || 'failed', true);
+        }
+      } catch (e) {
+        showStatus('error: ' + e, true);
+      }
+    });
+
+    $refresh.addEventListener('click', async () => {
+      showStatus('checking status...');
+      try {
+        const res = await status();
+        if (res.ok) {
+          showStatus('latest code ' + (res.number || ''));
+          showCode(res.code);
+        } else {
+          showStatus(res.error || 'failed', true);
+        }
+      } catch (e) {
+        showStatus('error: ' + e, true);
+      }
+    });
+
+    // Initial status on load
+    (async () => {
+      try {
+        const res = await status();
+        if (res.ok) showCode(res.code);
+      } catch {}
+    })();
+  </script>
+</body>
+</html>
